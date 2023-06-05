@@ -1,42 +1,53 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
+# 测试Github Action 多平台编译 Dart命令行项目
 name: Dart
 
+# 打Tag触发
+# on:
+#   create
+
+# push触发
 on:
   push:
-    branches: [ "master" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ main ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
+      - uses: dart-lang/setup-dart@v1.2
 
-      # Note: This workflow uses the latest stable version of the Dart SDK.
-      # You can specify other versions if desired, see documentation here:
-      # https://github.com/dart-lang/setup-dart/blob/main/README.md
-      # - uses: dart-lang/setup-dart@v1
-      - uses: dart-lang/setup-dart@9a04e6d73cca37bd455e0608d7e5092f881fd603
+      # 安装依赖,测试环境
+      - name: Install dependencies
+        run: dart pub global activate stagehand
 
+      # 查看Dart版本
+      - name: Report version
+        run: dart --version
+
+      # 导入依赖
       - name: Install dependencies
         run: dart pub get
 
-      # Uncomment this step to verify the use of 'dart format' on each commit.
-      # - name: Verify formatting
-      #   run: dart format --output=none --set-exit-if-changed .
+      # 代码格式化
+      - name: Check formatting (using dev dartfmt release)
+        run: dart format --output=none --set-exit-if-changed .
 
-      # Consider passing '--fatal-infos' for slightly stricter analysis.
-      - name: Analyze project source
-        run: dart analyze
+      # 编译二进制
+      - name: Compile
+        run: |
+            mkdir ${{ github.workspace }}/package
+            dart compile exe  bin/flowcli.dart -o ${{ github.workspace }}/package/flowcli
 
-      # Your project will need to have tests in test/ and a dependency on
-      # package:test for this step to succeed. Note that Flutter projects will
-      # want to change this to 'flutter test'.
-      - name: Run tests
-        run: dart test
+      # 上传成果物
+      - uses: actions/upload-artifact@v1
+        with:
+          name: ${{ runner.os }}_flowcli
+          path: ${{ github.workspace }}/package
+        name: 'Upload File'
